@@ -1,68 +1,97 @@
-'use client'
+"use client";
+
+import axios from "node_modules/axios";
+import { useRouter } from "node_modules/next/navigation";
+import { Table } from "node_modules/react-bootstrap/esm";
+import { useEffect, useState } from "react";
+
 // import node module libraries
-import { Fragment } from "react";
-import Link from 'next/link';
-import { Container, Col, Row } from 'react-bootstrap';
-
-// import widget/custom components
-import { StatRightTopIcon } from "widgets";
-
-// import sub components
-import { ActiveProjects, Teams, 
-    TasksPerformance 
-} from "sub-components";
-
-// import required data files
-import ProjectsStatsData from "data/dashboard/ProjectsStatsData";
 
 const Home = () => {
-    return (
-        <Fragment>
-            <div className="bg-primary pt-10 pb-21"></div>
-            <Container fluid className="mt-n22 px-6">
-                <Row>
-                    <Col lg={12} md={12} xs={12}>
-                        {/* Page header */}
-                        <div>
-                            <div className="d-flex justify-content-between align-items-center">
-                                <div className="mb-2 mb-lg-0">
-                                    <h3 className="mb-0  text-white">Projects</h3>
-                                </div>
-                                <div>
-                                    <Link href="#" className="btn btn-white">Create New Project</Link>
-                                </div>
-                            </div>
-                        </div>
-                    </Col>
-                    {ProjectsStatsData.map((item, index) => {
-                        return (
-                            <Col xl={3} lg={6} md={12} xs={12} className="mt-6" key={index}>
-                                <StatRightTopIcon info={item} />
-                            </Col>
-                        )
-                    })}
-                </Row>
+  const [notification, setNotification] = useState({
+    status: false,
+    message: "",
+  });
+  const router = useRouter();
+  let accessToken = "";
+  const [products, setProducts] = useState(null);
 
-                {/* Active Projects  */}
-                <ActiveProjects />
+  const getProducts = async (accessToken) => {
+    try {
+      await axios
+        .get("/api/products", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
+        .then((response) => {
+          setProducts(response.data);
+        })
+        .catch((error) => {
+          console.log(error);
+          if (error?.response?.data?.statusCode === 401) {
+            setNotification({
+              status: true,
+              message: "Gagal",
+            });
+          }
+        });
+    } catch (error) {
+      if (err.response?.status === 403) {
+        const refreshToken = localStorage.getItem("refreshToken");
+        const res = await axios.post(process.env.NEXT_PUBLIC_REFRESh_TOKEN, {
+          refreshToken,
+        });
+        localStorage.setItem("accessToken", res.data.accessToken);
+        return getProfile();
+      } else {
+        console.error("Gagal akses:", err.message);
+      }
+    }
+  };
 
-                <Row className="my-6">
-                    <Col xl={4} lg={12} md={12} xs={12} className="mb-6 mb-xl-0">
+  useEffect(() => {
+    accessToken = localStorage.getItem("accessToken");
 
-                        {/* Tasks Performance  */}
-                        <TasksPerformance />
+    if (!accessToken) {
+      router.push("/authentication/sign-in");
+      return;
+    }
 
-                    </Col>
-                    {/* card  */}
-                    <Col xl={8} lg={12} md={12} xs={12}>
+    getProducts(accessToken);
+  }, []);
 
-                        {/* Teams  */}
-                        <Teams />
-
-                    </Col>
-                </Row>
-            </Container>
-        </Fragment>
-    )
-}
+  return (
+    <div className="container mt-4">
+      <Table className="text-nowrap">
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Product Name</th>
+            <th scope="col">Product Brand</th>
+            <th scope="col">Product Owner</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.isArray(products) && products.length > 0 ? (
+            products.map((res) => (
+              <tr key={res.id}>
+                <td>{res.id}</td>
+                <td>{res.product_name}</td>
+                <td>{res.product_brand}</td>
+                <td>{res.owner_name}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="4" className="text-center">
+                Tidak ada data produk.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </Table>
+    </div>
+  );
+};
 export default Home;
